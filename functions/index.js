@@ -1,24 +1,35 @@
 const functions = require("firebase-functions");
 const express = require("express");
-const app = express();
 const wiki = require("./bad-method");
+const { initializeApp } = require("firebase-admin/app");
+const { getFirestore } = require("firebase-admin/firestore");
 
-const cors = require("cors")({ origin: true });
-app.use(cors);
+initializeApp();
+
+const db = getFirestore();
+const app = express();
 
 app.use(express.static("wikipedia-template"));
 
 
-app.get("/page/:pageTitle", (req, res) => {
+app.get("/page/:pageTitle", async (req, res) => {
   const title = req.params["pageTitle"];
-  console.log(wiki);
-  res.send(wiki.wikiFormat(title, `blah blah <br/> more stuff about ${title}`));
+
+  const page = await db.collection("Pages").doc(title).get();
+  const pageData = page.data();
+
+  console.log(pageData);
+
+  res.send(wiki.wikiFormat(pageData["title"], pageData["body"]));
 });
 
-app.get("/api", (req, res) => {
-  const date = new Date();
-  const hours = (date.getHours() % 12) + 1; // London is UTC + 1hr;
-  res.json({ bongs: "BONG ".repeat(hours) });
+
+app.get("/api", async (req, res) => {
+  const snapshot = await db.collection("Pages").get();
+  snapshot.forEach((doc) => {
+    console.log(doc.id, "=>", doc.data());
+  });
+  res.json({ snapshot });
 });
 
 
